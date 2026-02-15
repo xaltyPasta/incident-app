@@ -1,10 +1,26 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 
+export const dynamic = "force-dynamic"
+
 export default function IncidentsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="text-center mt-5">
+          <div className="spinner-border" />
+        </div>
+      }
+    >
+      <IncidentsContent />
+    </Suspense>
+  )
+}
+
+function IncidentsContent() {
   const { data: session, status } = useSession()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -15,19 +31,11 @@ export default function IncidentsPage() {
   const [searchInput, setSearchInput] = useState("")
   const [error, setError] = useState<string | null>(null)
 
-  //////////////////////////////////////////////////////
-  // AUTH PROTECTION
-  //////////////////////////////////////////////////////
-
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/")
     }
   }, [status, router])
-
-  //////////////////////////////////////////////////////
-  // FETCH
-  //////////////////////////////////////////////////////
 
   async function fetchIncidents() {
     try {
@@ -35,7 +43,8 @@ export default function IncidentsPage() {
       setError(null)
 
       const res = await fetch(
-        `/api/incidents?${searchParams.toString()}`
+        `/api/incidents?${searchParams.toString()}`,
+        { cache: "no-store" }
       )
 
       if (res.status === 401) {
@@ -58,16 +67,11 @@ export default function IncidentsPage() {
     }
   }
 
-
   useEffect(() => {
     if (status === "authenticated") {
       fetchIncidents()
     }
   }, [searchParams, status])
-
-  //////////////////////////////////////////////////////
-  // QUERY UPDATE
-  //////////////////////////////////////////////////////
 
   function updateQuery(key: string, value: string | null) {
     const params = new URLSearchParams(searchParams.toString())
@@ -81,10 +85,6 @@ export default function IncidentsPage() {
     params.set("page", "1")
     router.push(`/incidents?${params.toString()}`)
   }
-
-  //////////////////////////////////////////////////////
-  // SORTING
-  //////////////////////////////////////////////////////
 
   function handleSort(column: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -113,10 +113,6 @@ export default function IncidentsPage() {
     return sortOrder === "asc" ? " ↑" : " ↓"
   }
 
-  //////////////////////////////////////////////////////
-  // SEARCH (DEBOUNCED)
-  //////////////////////////////////////////////////////
-
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (searchInput.trim()) {
@@ -129,19 +125,11 @@ export default function IncidentsPage() {
     return () => clearTimeout(timeout)
   }, [searchInput])
 
-  //////////////////////////////////////////////////////
-  // PAGINATION
-  //////////////////////////////////////////////////////
-
   function changePage(newPage: number) {
     const params = new URLSearchParams(searchParams.toString())
     params.set("page", newPage.toString())
     router.push(`/incidents?${params.toString()}`)
   }
-
-  //////////////////////////////////////////////////////
-  // LOADING / AUTH STATES
-  //////////////////////////////////////////////////////
 
   if (status === "loading") {
     return (
@@ -152,10 +140,6 @@ export default function IncidentsPage() {
   }
 
   if (!session) return null
-
-  //////////////////////////////////////////////////////
-  // UI
-  //////////////////////////////////////////////////////
 
   return (
     <div className="container mt-4">
@@ -169,7 +153,6 @@ export default function IncidentsPage() {
         </button>
       </div>
 
-      {/* Filters */}
       <div className="row mb-3">
         <div className="col-md-3">
           <select
@@ -211,9 +194,7 @@ export default function IncidentsPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="alert alert-danger">{error}</div>
-      )}
+      {error && <div className="alert alert-danger">{error}</div>}
 
       {loading && (
         <div className="text-center">
