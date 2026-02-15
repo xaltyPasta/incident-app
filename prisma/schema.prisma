@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  schemas   = ["public_incident"]
+}
+
+//////////////////////////////////////////////////////
+// ENUMS
+//////////////////////////////////////////////////////
+
+enum Severity {
+  SEV1
+  SEV2
+  SEV3
+  SEV4
+
+  @@schema("public_incident")
+}
+
+enum Status {
+  OPEN
+  MITIGATED
+  RESOLVED
+
+  @@schema("public_incident")
+}
+
+//////////////////////////////////////////////////////
+// AUTH MODELS (NextAuth + Google)
+//////////////////////////////////////////////////////
+
+model User {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  accounts      Account[]
+  sessions      Session[]
+  incidents     Incident[] @relation("IncidentOwner")
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@schema("public_incident")
+}
+
+model Account {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String  @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@schema("public_incident")
+}
+
+model Session {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String   @unique
+  userId       String   @db.Uuid
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@schema("public_incident")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@schema("public_incident")
+}
+
+//////////////////////////////////////////////////////
+// INCIDENT DOMAIN
+//////////////////////////////////////////////////////
+
+model Incident {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title     String
+  service   String
+  severity  Severity
+  status    Status   @default(OPEN)
+
+  ownerId   String?  @db.Uuid
+  owner     User?    @relation("IncidentOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  summary   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([severity])
+  @@index([status])
+  @@index([service])
+  @@index([createdAt])
+  @@index([severity, status])
+  @@index([ownerId])
+
+  @@schema("public_incident")
+}
