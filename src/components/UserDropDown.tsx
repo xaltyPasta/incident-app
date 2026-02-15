@@ -51,7 +51,7 @@ export default function UserDropdown({ name, email, role }: Props) {
                         <button
                             className="btn btn-danger btn-sm w-100"
                             onClick={() =>
-                                signOut({ callbackUrl: "/login" })
+                                signOut({ callbackUrl: "/" })
                             }
                         >
                             Logout
